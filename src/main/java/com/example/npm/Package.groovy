@@ -13,14 +13,12 @@ import org.apache.http.entity.ContentType
 import org.apache.http.impl.client.BasicCredentialsProvider
 import org.apache.http.impl.client.HttpClients
 
-import com.fasterxml.jackson.databind.node.BinaryNode
-
 import groovy.json.JsonOutput
 
-class PackageGroovy {
+class Package {
   static main(args) {
     def pkg = 'vala'
-    def vsn = '1.10.0'
+    def vsn = '1.13.0'
 
     def packageJson = [
       name: pkg,
@@ -56,7 +54,7 @@ class PackageGroovy {
 
     def pkgTgz = "${pkg}-${vsn}.tgz"
 
-    def shasum = MessageDigest.getInstance("SHA-1").digest(bos.toByteArray()).encodeHex().toString()
+    def shasum = MessageDigest.getInstance("SHA-1").digest(data).encodeHex().toString()
 
     // add dist to package json
     packageJson['_id'] = "${pkg}@${vsn}"
@@ -74,7 +72,7 @@ class PackageGroovy {
       _attachments: [
         "${pkgTgz}": [
           'content-type': 'application/octet-stream',
-          data: new BinaryNode(data).asText(),
+          data: data.encodeBase64().toString(),
           length: data.length
         ]
       ]
