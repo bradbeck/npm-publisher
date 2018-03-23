@@ -15,10 +15,15 @@ import org.apache.http.impl.client.HttpClients
 
 import groovy.json.JsonOutput
 
-class Package {
+class Publish {
   static main(args) {
     def pkg = 'vala'
-    def vsn = '1.13.0'
+    def vsn = '1.16.0'
+    def host = 'localhost'
+    def port = 8081
+    def repo = "http://${host}:${port}/repository/staging-npm-build"
+    def user = 'admin'
+    def pass = 'admin123'
 
     def packageJson = [
       name: pkg,
@@ -28,14 +33,15 @@ class Package {
       keywords: [ 'demo' ]
     ]
 
-    println JsonOutput.prettyPrint(JsonOutput.toJson(packageJson))
-    def pkgJsonBytes = JsonOutput.toJson(packageJson).bytes
-
-    def tae = new TarArchiveEntry("package/package.json")
-    tae.setSize(pkgJsonBytes.length)
+    def pkgJsonJson = JsonOutput.toJson(packageJson)
+    println JsonOutput.prettyPrint(pkgJsonJson)
+    def pkgJsonBytes = pkgJsonJson.bytes
 
     def bos = new ByteArrayOutputStream()
     def taos = new TarArchiveOutputStream(new GzipCompressorOutputStream(bos))
+
+    def tae = new TarArchiveEntry("package/package.json")
+    tae.size = pkgJsonBytes.length
 
     taos.putArchiveEntry(tae)
     taos.write(pkgJsonBytes)
@@ -45,18 +51,13 @@ class Package {
     def data = bos.toByteArray()
 
     def credProvider = new BasicCredentialsProvider()
-    credProvider.setCredentials(
-        new AuthScope("localhost", 8081),
-        new UsernamePasswordCredentials("admin", "admin123"))
-    def http = HttpClients.custom()
-        .setDefaultCredentialsProvider(credProvider)
-        .build()
+    credProvider.setCredentials(new AuthScope(host, port), new UsernamePasswordCredentials(user, pass))
+    def http = HttpClients.custom().setDefaultCredentialsProvider(credProvider).build()
 
     def pkgTgz = "${pkg}-${vsn}.tgz"
 
     def shasum = MessageDigest.getInstance("SHA-1").digest(data).encodeHex().toString()
 
-    // add dist to package json
     packageJson['_id'] = "${pkg}@${vsn}"
     packageJson['dist'] = [
       shasum: shasum,
@@ -78,11 +79,12 @@ class Package {
       ]
     ]
 
-    println JsonOutput.prettyPrint(JsonOutput.toJson(pkgRoot))
-    def request = JsonOutput.toJson(pkgRoot).bytes
+    def pkgRootJson = JsonOutput.toJson(pkgRoot)
+    println JsonOutput.prettyPrint(pkgRootJson)
+    def request = pkgRootJson.bytes
 
-    def httpput = new HttpPut("http://localhost:8081/repository/staging-npm-build/${pkg}")
-    httpput.setEntity(new ByteArrayEntity(request, ContentType.APPLICATION_JSON))
+    def httpput = new HttpPut("${repo}/${pkg}")
+    httpput.entity = new ByteArrayEntity(request, ContentType.APPLICATION_JSON)
 
     def response = http.execute(httpput)
     println response
