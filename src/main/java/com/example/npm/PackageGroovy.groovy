@@ -1,6 +1,5 @@
 package com.example.npm
 
-import java.io.ByteArrayOutputStream
 import java.security.MessageDigest
 
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
@@ -8,21 +7,20 @@ import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
 import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream
 import org.apache.http.auth.AuthScope
 import org.apache.http.auth.UsernamePasswordCredentials
-import org.apache.http.client.CredentialsProvider
-import org.apache.http.client.methods.CloseableHttpResponse
 import org.apache.http.client.methods.HttpPut
 import org.apache.http.entity.ByteArrayEntity
 import org.apache.http.entity.ContentType
 import org.apache.http.impl.client.BasicCredentialsProvider
-import org.apache.http.impl.client.CloseableHttpClient
 import org.apache.http.impl.client.HttpClients
+
+import com.fasterxml.jackson.databind.node.BinaryNode
 
 import groovy.json.JsonOutput
 
 class PackageGroovy {
   static main(args) {
     def pkg = 'vala'
-    def vsn = '1.7.0'
+    def vsn = '1.10.0'
 
     def packageJson = [
       name: pkg,
@@ -32,7 +30,7 @@ class PackageGroovy {
       keywords: [ 'demo' ]
     ]
 
-    println JsonOutput.toJson(packageJson)
+    println JsonOutput.prettyPrint(JsonOutput.toJson(packageJson))
     def pkgJsonBytes = JsonOutput.toJson(packageJson).bytes
 
     def tae = new TarArchiveEntry("package/package.json")
@@ -46,7 +44,7 @@ class PackageGroovy {
     taos.closeArchiveEntry()
     taos.close()
 
-    def data = bos.toByteArray().encodeBase64().toString()
+    def data = bos.toByteArray()
 
     def credProvider = new BasicCredentialsProvider()
     credProvider.setCredentials(
@@ -75,14 +73,14 @@ class PackageGroovy {
       versions: [ "${vsn}": packageJson ],
       _attachments: [
         "${pkgTgz}": [
-          'content-type': ContentType.APPLICATION_OCTET_STREAM,
-          data: data,
-          length: data.length()
+          'content-type': 'application/octet-stream',
+          data: new BinaryNode(data).asText(),
+          length: data.length
         ]
       ]
     ]
 
-    println JsonOutput.toJson(pkgRoot)
+    println JsonOutput.prettyPrint(JsonOutput.toJson(pkgRoot))
     def request = JsonOutput.toJson(pkgRoot).bytes
 
     def httpput = new HttpPut("http://localhost:8081/repository/staging-npm-build/${pkg}")
